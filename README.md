@@ -3,8 +3,8 @@ A scheduler that can change the policies from simple priority based to a random 
 
 The default scheduler in Xinu will schedule the process with the higher priority. Starvation is produced in Xinu when there are two or 
 more processes eligible for execution that have different priorities. The higher priority process gets to execute first which results
-in lower priority processes never getting any CPU time unless the higher priority process ends. The two scheduling policies that you need
-to implement, as described below, should address this problem. Note that for each of them, you need to consider how to handle the Null 
+in lower priority processes never getting any CPU time unless the higher priority process ends. The two scheduling policies that you 
+need to implement, as described below, should address this problem. Note that for each of them, you need to consider how to handle the Null 
 process, so that this process is selected to run when and only when there are no other ready processes.For both scheduling policies, a 
 valid process priority value is an integer between 0 to 99, where 99 is the highest priority.
 
@@ -22,8 +22,6 @@ process that did not get to use up its previously assigned quantum, we allow par
 Suppose for each process, a variable counter describes how many ticks are left from its quantum, then at the beginning of the next epoch, 
 quantum = floor(counter/2) + priority. For example, a counter of 5 and a priority of 10 will produce a new quantum value of 12. During each 
 epoch, runnable processes are scheduled according to their goodness. For processes that have used up their quantum, their goodness value is 0.
-For other runnable processes, their goodness value is set considering both their priority and the amount of 
-quantum allocation left: goodness = counter + priority. Note that round-robin is used among processes with equal goodness. The priority can be
-changed by explicitly specifying the priority of the process during the create() system call or through the chprio() function. Priority changes
+For other runnable processes, their goodness value is set considering both their priority and the amount of quantum allocation left: goodness = counter + priority. Note that round-robin is used among processes with equal goodness. The priority can be changed by explicitly specifying the priority of the process during the create() system call or through the chprio() function. Priority changes
 made in the middle of an epoch, however, will only take effect in the next epoch. An example of how processes should be scheduled under this scheduler
 is as follows: If there are processes P1, P2, P3 with time quantum 10,20,15 then the epoch would be equal to 10+20+15=45 and the possible schedule (with quantum duration specified in the braces) can be: P2(20), P3(15), P1(10), P2(20) ,P3(15), P1(10) but not: P2(20), P3(15), P2(20), P1(10).
