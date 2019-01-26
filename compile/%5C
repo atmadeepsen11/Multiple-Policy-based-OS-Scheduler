@@ -1,0 +1,344 @@
+/* resched.c  -  resched */
+
+#include <conf.h>
+#include <kernel.h>
+#include <proc.h>
+#include <q.h>
+#include <sched.h>
+
+unsigned long currSP;	/* REAL sp of current process */
+extern int ctxsw(int, int, int, int);
+/*-----------------------------------------------------------------------
+ * resched  --  reschedule processor to highest priority ready process
+ *
+ * Notes:	Upon entry, currpid gives current process id.
+ *		Proctab[currpid].pstate gives correct NEXT state for
+ *			current process if other than PRREADY.
+ *------------------------------------------------------------------------
+ */
+
+extern int val;
+int resched()
+{
+	STATWORD ps;
+        disable(ps);
+	register struct	pentry	*optr;	/* pointer to old process entry */
+	register struct	pentry	*nptr;	/* pointer to new process entry */
+	/* no switch needed if current process priority higher than next*/
+//////////????///////////////////////////////////////////////////////////////???/////////////////////////???//////////////////
+kprintf("Called resched: \n");
+kprintf("val: %d\n", val);
+if (val==1){
+	
+kprintf("Preempt is : %d \n",preempt);
+int sum_rand_key=0;
+
+kprintf("Currpid: %d\n",currpid);
+optr=&proctab[currpid];
+        if (optr->pstate == PRCURR){
+                        kprintf("Current process %s \n",optr->pname);
+                        optr->pstate = PRREADY;
+                        insert(currpid,rdyhead,optr->pprio); 
+        }
+
+kprintf("Current process after inserting in rdy queue %d \n",optr->pstate);	
+
+int index=q[rdytail].qprev;
+//kprintf("Highest prio process in ready list is : %d\n",index);
+	while(index!=q[rdyhead]){
+		kprintf("Ready list: %d \n",index);
+		sum_rand_key+=q[index].qkey;
+		index=q[index].qprev;
+	}
+
+kpintf("sum: %d \n",sum_rand_key);
+int randkey=0;
+	if(sum_rand_key!=0) randkey=rand()%sum_rand_key;
+	else randkey=0;
+
+kprintf("sum: %d \n",sum_rand_key);
+
+	kprintf("randkey: %d \n",randkey);
+	index=q[rdytail].qprev;
+	kprintf("index at the start of loop: %d \n",index);
+	while(index!=q[rdyhead]){
+		kprintf("priority of process: %d \n", q[index].qkey);
+		if(randkey<q[index].qkey||sum_rand_key==0){
+			kprintf("switching to: %d \n",index);
+                        nptr=&proctab[(currpid=index)];
+			dequeue(index);
+                        nptr->pstate = PRCURR;
+#ifdef  RTCLOCK
+        preempt = QUANTUM;              /* reset preemption counter     */
+#endif
+kprintf("after switching to: %d \n", index);
+ctxsw((int)&optr->pesp, (int)optr->pirmask, (int)&nptr->pesp, (int)nptr->pirmask);
+kprintf("Preempt is : %d \n",preempt);	
+return OK;
+		}
+		else {randkey=randkey-q[index].qkey;
+			index=q[index].qprev;
+		}
+kprintf("randkey after: %d \n",randkey);
+}
+//        return OK;	
+
+}
+/*if(val==1){
+	struct pentry *proc;
+
+int i;
+int sum_rand_key=0;
+int randkey=0;
+for(i=0; i<NPROC; i++){
+	 optr=&proctab[currpid];
+        if(optr->pstate==PRREADY)
+//		{kprintf("Ready process: %s \n",optr->pname);
+                sum_rand_key+=optr->pprio;
+	}
+
+if (optr->pstate == PRCURR) 
+			{kprintf("Ready process: %s \n",optr->pname);
+                        optr->pstate = PRREADY;
+                        insert(currpid,rdyhead,optr->pprio);
+                        sum_rand_key+=optr->pprio; }
+//if (optr->pstate==PRCURR) sum_rand_key+=optr->pprio;
+
+if (sum_rand_key!=0)
+	randkey=rand()%102;
+//	randkey = rand()%sum_rand_key;
+else if((sum_rand_key==0) && proctab[currpid].pstate==PRCURR)
+	return OK;      //check for other process: null process and if current pid state is equal to PCURR 
+else if(sum_rand_key==0 && currpid ==NULLPROC)
+	return OK;  //return null process
+
+kprintf("sum %d\n", sum_rand_key);
+kprintf("randkey %d\n", randkey);
+//	if (optr->pstate == PRCURR) {
+//                        optr->pstate = PRREADY;
+//                        insert(currpid,rdyhead,optr->pprio);
+//			sum_rand_key+=optr->pprio; }
+      int  index = q[rdytail].qprev;                  
+      while(index!=q[rdyhead].qnext){
+		kprintf("index %d\n", index);
+		nptr = &proctab[index];
+		kprintf("Ready process in nptr: %s \n",nptr->pname);
+		kprintf("current priority %d\n", nptr->pprio);
+                if(nptr->pprio>randkey){
+		       nptr=&proctab[currpid=dequeue(index)];
+                       nptr->pstate = PRCURR;			
+		break; }
+		else randkey=randkey-nptr->pprio;
+	kprintf("randkey after %d\n", randkey);
+	kprintf("Ready after process in nptr: %s \n",nptr->pname);	
+ 	index=q[index].qprev;
+}
+#ifdef RTCLOCK
+                        preempt = QUANTUM;
+#endif
+		kprintf("switching to %s, %d\n", nptr->pname, index);
+                restore(ps);
+                        ctxsw((int)&optr->pesp, (int)optr->pirmask, (int)&nptr->pesp, (int)nptr->pirmask);
+                        return  OK;
+}
+
+if (val==2){
+
+struct pentry *proc;
+int pid=0;
+
+	void next_epoch(){	
+		for (pid=1; pid<NPROC; pid++){
+		proc=&proctab[pid];
+			if(proc->pstate!=PRFREE){
+				if(proc->quantum>0)
+					proc->quantum = floor((proc->quantum)/2) + proc->pprio; 
+					proc->goodness = proc->quantum + proc->pprio; 
+				}      
+				else
+				proc->goodness = proc->pprio;
+			}
+		}
+
+	if(epoch==0){
+		next_epoch();
+	}
+
+	if(preempt<=0){
+		optr=&proctab[currpid];
+		optr->goodness=0;
+		preempt=0;
+	}
+
+optr->quantum=preempt;
+
+int goodness_max=0;
+int temp=0;
+	for(pid=0; pid<NPROC; pid++){
+	proc=&proctab[pid];    //for all processes or only ready processes
+		if(proctab[pid].goodness>goodness_max && proc->pstate==PRREADY){
+			goodness_max=proc->goodness;
+			temp=goodness_max;
+		}
+	} 
+	int epoch=0;
+
+	for(pid=0; pid<NPROC; pid++){
+	proc=&proctab[pid];
+		if (proc->pstate==PRREADY){
+			epoch += proc->quantum;
+			return OK;
+		}
+	}		
+	optr=&proctab[currpid];
+	if (optr->goodness>goodness_max && optr->pstate==PRCURR){
+		preempt=optr->quantum;
+		return OK;  }
+
+	else if(optr->goodness<goodness_max && optr->pstate==PRCURR){
+	preempt = optr->quantum;
+		if(optr->pstate==PRCURR){
+			optr->pstate=PRREADY;
+			insert(currpid, rdyhead, optr->pprio); 	
+		}
+		nptr=&proctab[currpid=temp];
+		dequeue(temp);
+		nptr->pstate=PRCURR;
+//		break;
+	
+	}
+#ifdef  RTCLOCK
+        preempt = nptr->quantum;             
+#endif
+
+ctxsw((int)&optr->pesp, (int)optr->pirmask, (int)&nptr->pesp, (int)nptr->pirmask);
+
+       
+        return OK;
+}		
+*/	
+            
+else{
+if ( ( (optr= &proctab[currpid])->pstate == PRCURR) &&
+	   (lastkey(rdytail)<optr->pprio)) {
+	return(OK);
+}
+	/* force context switch */
+	if (optr->pstate == PRCURR) {
+		optr->pstate = PRREADY;
+		insert(currpid,rdyhead,optr->pprio);
+	}
+	/* remove highest priority process at end of ready list */
+
+	nptr = &proctab[ (currpid = getlast(rdytail)) ];
+	nptr->pstate = PRCURR;		/* mark it currently running	*/
+#ifdef	RTCLOCK
+	preempt = QUANTUM;		/* reset preemption counter	*/
+#endif
+ctxsw((int)&optr->pesp, (int)optr->pirmask, (int)&nptr->pesp, (int)nptr->pirmask);
+	/* The OLD process returns here when resumed. */
+	return OK;
+}
+}
+
+//	%(sum_rand_key);
+/*
+if(!QUANTUM){
+	if (nonempty(list)){
+		else if (nptr->pprio>randkey){
+			dequeue(q[currpid].qkey);
+			nptr->pstate=PRCURR;
+			preempt = QUANTUM;
+}
+
+	q[list]=q[list].qnext;	}	
+}
+}
+*/
+// for (i=0; i<NPROC; i++){
+// if(((optr=&proctab[currpid])->pstate==PRCURR)){ 
+//                if (lastkey(rdytail)>randkey){
+//	         	 optr->pstate = PRREADY;
+//	                 insert(currpid,rdyhead,optr->pprio);
+//              	 nptr = &proctab[ (currpid = getlast(rdytail)) ];
+//                 	 nptr->pstate = PRCURR;  } 
+//		else if(lastkey(rdytail)<randkey){
+//			randkey = randkey - lastkey(rdytail); }
+//}
+//}
+
+
+//	for (i=0; i<NPROC; i++){
+//	nptr = &proctab[i];
+//	if(nptr->pstate==PRREADY){
+//		if(nptr->pprio>randkey){
+//			dequeue(i);
+//			optr->pstate = PRREADY;
+//                      insert(currpid,rdyhead,optr->pprio);
+//			nptr = &proctab[ (currpid = getlast(rdytail))];
+//                        nptr->pstate = PRCURR;
+//			preempt = QUANTUM;
+//			ctxsw((int)&optr->pesp, (int)optr->pirmask, (int)&nptr->pesp, (int)nptr->pirmask); 
+//		}
+//		else if((nptr->pprio)<randkey){
+//			randkey=randkey-(nptr->pprio);  }
+
+//}                        
+//}
+	
+//	while(list>rdyhead){
+//		 nptr = &proctab[q[rdytail]];
+//		if(nptr=proctab[q[rdytail].qprev]->pprio>randkey){
+//			optr->pstate = PRREADY;
+//                      insert(currpid,rdyhead,optr->pprio);
+//                        dequeue(list);
+//                        nptr->pstate = PRCURR;
+//                        preempt = QUANTUM;
+//                        ctxsw((int)&optr->pesp, (int)optr->pirmask, (int)&nptr->pesp, (int)nptr->pirmask);
+//} 		else if ((nptr->pprio)<randkey){
+//                        randkey=randkey-(nptr->pprio);  }
+//}
+
+//      index = rdytail;
+//      //      index = q[rdytail].qprev;
+//      //      optr = &proctab[currpid];
+//      //      nptr = &proctab[ (currpid = getlast(rdytail))];    
+//      //        nptr = &proctab[q[rdytail].qprev];
+//      //      nptr = &proctab[index];
+//      //      optr->pstate = PRREADY;
+//      //      insert(currpid,rdyhead,optr->pprio);
+//      //      dequeue(index);
+//      //      nptr->pstate = PRCURR;
+//      //      preempt = QUANTUM; 
+//      //      kprintf("old process %s    new proces %s  \n", optr->pname , nptr->pname);
+//        //      ctxsw((int)&optr->pesp, (int)optr->pirmask, (int)&nptr->pesp, (int)nptr->pirmask);
+//        //      while(index>=q[rdyhead].qnext){
+//        //      while(q[q[rdytail].qkey].qprev!=EMPTY){
+//        //              index=q[rdytail].qprev;
+//                        //kprintf("sadasdas\n");
+//                        //              nptr=&proctab[index];
+//                        //      for(;index>q[rdyhead].qkey; index--){ 
+//                        //              kprintf("%d\n", randkey);
+//                          //              if(nptr->pprio>randkey){
+//                          //                      if (optr->pstate == PRCURR) {
+//                            //                      optr->pstate = PRREADY;
+//                              //                      insert(currpid,rdyhead,optr->pprio); }
+//                                //                      nptr=&proctab[currpid=q[rdytail].qprev];
+//                                //                       nptr->pstate = PRCURR;
+//                                //#ifdef RTCLOCK
+//                                 //                       preempt = QUANTUM; 
+//                                 //#endif
+//                                 //                      kprintf("old process %s    new proces %s  \n", optr->pname , nptr->pname);
+//                                 //              enable(ps);
+//                                 //                      ctxsw((int)&optr->pesp, (int)optr->pirmask, (int)&nptr->pesp, (int)nptr->pirmask);
+//                                 //                      return  OK;
+//                                 //}               else {
+//                                 //                        randkey=randkey-nptr->pprio;
+//                                 //                         }
+//
+//                                 //      q[rdytail].qprev=q[q[rdytail].qprev].qprev;
+//                                 //      index=q[q[index].qprev].qkey;
+//                                 // index = q[index].qprev;
+//                                 //} //else nptr=&proctab[0]; 
+//                                 //} 
+//
